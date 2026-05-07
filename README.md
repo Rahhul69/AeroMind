@@ -25,5 +25,5 @@ This system relies on a two-stage artificial intelligence pipeline:
 
 1. **Clone the repository:**
    ```bash
-   git clone [https://github.com/YOUR_USERNAME/AeroMind.git](https://github.com/YOUR_USERNAME/AeroMind.git)
+   git clone https://github.com/Rahhul69/AeroMind.git
    cd AeroMind
