@@ -1,70 +1,66 @@
 from flask import Flask, render_template, request, jsonify
 import pandas as pd
 import numpy as np
-from scipy.fft import fft
+from scipy.fft import fft, fftfreq
 import joblib
 import os
-os.environ['TF_CPP_MIN_LOG_LEVEL'] = '2' # Hides TensorFlow warnings on the server
 from tensorflow.keras.models import load_model
+
+os.environ['TF_CPP_MIN_LOG_LEVEL'] = '2'
 
 app = Flask(__name__)
 
-# Load Both AI Brains
-print("System: Booting Diagnostic Classifier...")
+# Load the trained brains into memory on boot
 classifier = joblib.load('turbine_classifier.pkl')
-
-print("System: Booting Predictive LSTM Forecaster...")
 forecaster = load_model('predictive_forecaster.keras')
 
-chunk_size = 1000
-fs = 1000 
-CRITICAL_VARIANCE_THRESHOLD = 0.8 # The mathematical breaking point
+CHUNK_SIZE = 1000 
+SAMPLING_RATE = 1000 
 
-def process_and_predict(data_array):
-    features = []
-    variances = []
+def process_and_predict(vibration_data):
+    x_features, lstm_sequence = [], []
     
-    # 1. Extract Features for the Classifier & Forecaster
-    for i in range(0, len(data_array) - chunk_size, chunk_size):
-        chunk = data_array[i:i + chunk_size]
-        yf = np.abs(fft(chunk)[0:chunk_size//2])
-        var_val = np.var(yf)
+    # Process the incoming live stream in 1-second chunks
+    for i in range(0, len(vibration_data), CHUNK_SIZE):
+        chunk = vibration_data[i:i+CHUNK_SIZE]
+        if len(chunk) < CHUNK_SIZE: break
+            
+        # Re-apply the math used during training
+        rms = float(np.sqrt(np.mean(chunk**2)))
+        peak = float(np.max(np.abs(chunk)))
         
-        features.append([np.max(yf), np.mean(yf), var_val])
-        variances.append(var_val)
-    
-    if not features:
-        return "ERROR", False, "N/A"
+        N = len(chunk)
+        yf = fft(chunk)
+        xf = fftfreq(N, 1/SAMPLING_RATE)
+        dominant_freq = float(xf[np.argmax(np.abs(yf[0:N//2]))])
+        
+        x_features.append([rms, peak, dominant_freq])
+        lstm_sequence.append([rms, peak])
+        
+    if not x_features: return "ERROR", False, "N/A"
 
-    # 2. Ask the Random Forest if it is broken RIGHT NOW
-    predictions = classifier.predict(features)
-    fault_ratio = np.mean(predictions)
-    is_faulty = bool(fault_ratio > 0.10)
+    # Step 1: Random Forest Diagnosis
+    # Grab the very last second of data and flatten it for the AI
+    latest_features = np.array(x_features[-1]).reshape(1, 3)
+    rf_prediction = classifier.predict(latest_features)
+    is_faulty = bool(np.ravel(rf_prediction)[0] == 1)
     
-    diagnosis = "CRITICAL FAULT DETECTED: Blade Pitch Error" if is_faulty else "HEALTHY: Turbine Operating Normally"
+    diagnosis = "CRITICAL FAULT: 50Hz Harmonic Spike" if is_faulty else "HEALTHY: Normal Parameters"
 
-    # 3. Ask the LSTM to predict the future wear-and-tear
-    # We take the recent variance trend, scale it roughly, and ask the LSTM
-    recent_trend = np.array(variances[-50:]).reshape(1, -1, 1) 
+    # Step 2: LSTM Lifespan Prediction
+    # Feed the entire sequence to the LSTM to analyze the degradation trend over time
+    sequence_array = np.array(lstm_sequence).reshape(1, len(lstm_sequence), 2)
+    raw_lstm_output = forecaster.predict(sequence_array, verbose=0)
     
-    # Pad with zeros if the file is too short to have 50 chunks
-    if recent_trend.shape[1] < 50:
-        pad_width = 50 - recent_trend.shape[1]
-        recent_trend = np.pad(recent_trend, ((0,0), (pad_width, 0), (0,0)), mode='constant')
-
-    # Normalize roughly to match training scale
-    recent_trend = recent_trend / np.max(recent_trend) if np.max(recent_trend) > 0 else recent_trend
+    # Steamroller: Flatten the timeline and grab the final health score
+    next_step = float(np.ravel(raw_lstm_output)[-1])
     
-    next_step_degradation = forecaster.predict(recent_trend, verbose=0)[0][0]
-    
-    # 4. Calculate estimated days remaining based on the LSTM's trajectory
     if is_faulty:
-        days_remaining = "0 Days (IMMEDIATE MAINTENANCE REQUIRED)"
+        days_remaining = "0 Days (IMMEDIATE MAINTENANCE)"
     else:
-        # Inverse calculate remaining lifespan based on the degradation curve
-        health_score = 1.0 - min(next_step_degradation, 1.0)
-        estimated_days = int(health_score * 30) # 30 day max lifespan
-        days_remaining = f"{max(1, estimated_days)} Days Estimated"
+        # Scale the 0.0 - 1.0 score against a hypothetical 30-day lifespan
+        health_score = max(0.0, min(next_step, 1.0))
+        days_remaining = f"{max(1, int(health_score * 30))} Days Estimated"
 
     return diagnosis, is_faulty, days_remaining
 
@@ -74,40 +70,27 @@ def home():
 
 @app.route('/predict', methods=['POST'])
 def predict():
-    baseline_file = request.files.get('file_baseline')
+    # Receive the CSV payload from the Edge Node
     live_file = request.files.get('file_live')
-
-    if not baseline_file or not live_file or baseline_file.filename == '' or live_file.filename == '':
-        return jsonify({"error": "Please upload both Baseline and Live files."})
+    if not live_file: return jsonify({"error": "Upload telemetry CSV."})
 
     try:
-        # Process Baseline
-        df_base = pd.read_csv(baseline_file)
-        base_chunk = df_base.iloc[:1000, 0].dropna().values
-        yf_base = np.abs(fft(base_chunk)[0:500])
-        xf_base = np.linspace(0.0, fs/2.0, 500)
+        vibration_array = pd.read_csv(live_file)['vibration_g'].values
+        diagnosis, is_faulty, days_remaining = process_and_predict(vibration_array)
 
-        # Process Live Data
-        df_live = pd.read_csv(live_file)
-        live_array = df_live.iloc[:, 0].dropna().values
-        live_chunk = live_array[:1000]
-        yf_live = np.abs(fft(live_chunk)[0:500])
-        xf_live = np.linspace(0.0, fs/2.0, 500)
-
-        # Run Dual-Engine AI Diagnosis
-        diagnosis, is_faulty, days_remaining = process_and_predict(live_array)
+        # Generate the FFT graph data for the frontend UI
+        last_chunk = vibration_array[-CHUNK_SIZE:]
+        yf_live = np.abs(fft(last_chunk)[0:CHUNK_SIZE//2])
+        xf_live = np.linspace(0.0, SAMPLING_RATE/2.0, CHUNK_SIZE//2)
 
         return jsonify({
-            "diagnosis": diagnosis,
-            "is_faulty": is_faulty,
-            "days_remaining": days_remaining,
-            "x_axis": xf_live.tolist(),
-            "y_base": (2.0/1000 * yf_base).tolist(),
-            "y_live": (2.0/1000 * yf_live).tolist()
+            "diagnosis": diagnosis, "is_faulty": is_faulty, "days_remaining": days_remaining,
+            "x_axis": xf_live.tolist(), "y_live": (2.0/CHUNK_SIZE * yf_live).tolist()
         })
-    
     except Exception as e:
+        import traceback
+        traceback.print_exc()
         return jsonify({"error": str(e)})
 
 if __name__ == '__main__':
-    app.run(debug=True, port=5000)
+    app.run(host='0.0.0.0', port=5000, debug=True)
