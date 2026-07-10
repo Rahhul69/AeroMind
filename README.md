@@ -29,14 +29,14 @@ This system relies on a two-stage edge-to-cloud pipeline:
 2. Activate the Virtual Environment (Windows PowerShell):
    ```PowerShell
    Set-ExecutionPolicy -Scope Process -ExecutionPolicy RemoteSigned
-   .\.venv\Scripts\Activate.ps1
+.\.venv\Scripts\Activate.ps1
 
 3. Install Core Dependencies:
-```Bash
+   ```Bash
 pip install -r requirements.txt
 
 4. Launch the Cloud Server:
-```Bash
+   ```Bash
 python app.py
 
 Navigate to [http://127.0.0.1:5000](http://127.0.0.1:5000) in your browser to access the AeroMind dashboard.
