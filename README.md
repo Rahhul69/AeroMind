@@ -1,4 +1,4 @@
-# AeroMind Cloud
+# AeroMind
 **Predictive Edge-to-Cloud Diagnostic Engine**
 
 AeroMind is a machine learning pipeline designed to ingest massive, high-velocity physical telemetry from edge nodes (wind turbines), distill the signal using mathematical transformations, and diagnose critical mechanical faults in real-time.
