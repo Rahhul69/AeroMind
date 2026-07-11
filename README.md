@@ -23,7 +23,7 @@ This system relies on a two-stage edge-to-cloud pipeline:
 
 1. **Clone the repository:**
    ```bash
-   git clone [https://github.com/Rahhul69/AeroMind.git](https://github.com/Rahhul69/AeroMind.git)
+   git clone https://github.com/Rahhul69/AeroMind.git
    cd AeroMind
 
 2. Activate the Virtual Environment (Windows PowerShell):
