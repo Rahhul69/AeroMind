@@ -140,14 +140,14 @@ function renderDashboard(){
   if(data.is_faulty){
     banner.style.background = 'var(--danger-soft)';
     banner.style.color = 'var(--danger)';
-    banner.style.border = '1px solid var(--danger)';
+    banner.style.border = '1px solid rgba(220,38,38,0.2)';
     document.getElementById('forecast-value').style.color = 'var(--danger)';
     card.style.borderLeftColor = 'var(--danger)';
     setStatus('fault', 'Fault detected');
   }else{
     banner.style.background = 'var(--success-soft)';
     banner.style.color = 'var(--success)';
-    banner.style.border = '1px solid var(--success)';
+    banner.style.border = '1px solid rgba(22,163,74,0.2)';
     document.getElementById('forecast-value').style.color = 'var(--success)';
     card.style.borderLeftColor = 'var(--success)';
     setStatus('ok', 'Nominal');
@@ -173,7 +173,7 @@ function updateFreqChart(maxFreq){
 
   const slicedX = serverPayload.x_axis.slice(0, cutoffIndex);
   const slicedY = serverPayload.y_live.slice(0, cutoffIndex);
-  const chartColor = serverPayload.is_faulty ? '#f66151' : '#ffb020';
+  const chartColor = serverPayload.is_faulty ? '#dc2626' : '#0284c7';
 
   drawChart('chartFreq', slicedX, slicedY, chartColor, 'Hz', true);
 }
@@ -185,7 +185,7 @@ function drawChart(canvasId, xData, yData, color, xLabel, fillGradient){
   let bgFill = 'transparent';
   if(fillGradient){
     const gradient = ctx.createLinearGradient(0, 0, 0, 280);
-    gradient.addColorStop(0, color + '55');
+    gradient.addColorStop(0, color + '22');
     gradient.addColorStop(1, color + '00');
     bgFill = gradient;
   }
@@ -194,14 +194,14 @@ function drawChart(canvasId, xData, yData, color, xLabel, fillGradient){
     type: 'line',
     data: {
       labels: xData.map(val => Number(val).toFixed(1) + ' ' + xLabel),
-      datasets: [{ data: yData, borderColor: color, borderWidth: 1.5, backgroundColor: bgFill, fill: fillGradient, pointRadius: 0, tension: 0.15 }]
+      datasets: [{ data: yData, borderColor: color, borderWidth: 2, backgroundColor: bgFill, fill: fillGradient, pointRadius: 0, tension: 0.15 }]
     },
     options: {
       responsive: true, maintainAspectRatio: false, animation: { duration: 700, easing: 'easeOutQuart' },
       plugins: { legend: { display: false } },
       scales: {
-        x: { grid: { color: '#22262a', drawBorder: false }, ticks: { color: '#5c6268', font: { family: 'JetBrains Mono', size: 10 }, maxTicksLimit: 8 } },
-        y: { grid: { color: '#22262a', drawBorder: false }, ticks: { color: '#5c6268', font: { family: 'JetBrains Mono', size: 10 } } }
+        x: { grid: { color: '#f1f5f9', drawBorder: false }, ticks: { color: '#64748b', font: { family: 'JetBrains Mono', size: 10 }, maxTicksLimit: 8 } },
+        y: { grid: { color: '#f1f5f9', drawBorder: false }, ticks: { color: '#64748b', font: { family: 'JetBrains Mono', size: 10 } } }
       },
       interaction: { intersect: false, mode: 'index' }
     }
