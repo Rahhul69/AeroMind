@@ -3,7 +3,7 @@
 
 AeroMind is a machine learning pipeline designed to ingest massive, high-velocity physical telemetry from edge nodes (wind turbines), distill the signal using mathematical transformations, and diagnose critical mechanical faults in real-time.
 
-## ⚙️ The Architecture
+## The Architecture
 
 This system relies on a two-stage edge-to-cloud pipeline:
 
@@ -13,13 +13,13 @@ This system relies on a two-stage edge-to-cloud pipeline:
 2. **Stage 2: AI Diagnostic Inference**
    A highly optimized Scikit-Learn Random Forest Classifier (`turbine_classifier.pkl`) analyzes the distilled FFT features. It isolates the specific mechanical harmonic signatures (e.g., separating normal background wind slop from a critical 5-Degree Blade Pitch Error) and outputs an immediate binary classification.
 
-## 🛠️ Tech Stack
+## Tech Stack
 * **Backend:** Python, Flask, Pandas, NumPy, SciPy (Data Ingestion)
 * **Machine Learning:** Scikit-Learn, Joblib
 * **Frontend:** HTML5, CSS3, JavaScript (Single Page Application)
 * **Visualization:** Chart.js (Real-time Frequency Domain rendering)
 
-## 🚀 Installation & Boot Sequence
+## Installation & Boot Sequence
 
 1. **Clone the repository:**
    ```bash
